@@ -1,0 +1,31 @@
+{
+  "process_rules": {
+    "Telegram.exe": "Соцсети",
+    "Discord.exe": "Соцсети",
+    "pycharm64.exe": "Разработка",
+    "vscode.exe": "Разработка"
+  },
+  "window_rules": {
+    "Работа": ["Jira", "Confluence", "GitHub"],
+    "Развлечения": ["YouTube", "Twitch", "Steam"]
+  },
+  "browser_specific": {
+    "Работа": ["StackOverflow", "GitLab"],
+    "Развлечения": ["Reddit", "TikTok"]
+  },
+  "blocklist": {
+    "categories": [],
+    "apps": []
+  },
+  "pomodoro": {
+    "work_minutes": 25,
+    "break_minutes": 5
+  },
+  "title_overrides":{
+    "pycharm64": "PyCharm",
+    "Taskmgr": "Диспетчер задач",
+    "wps": "WPS Office",
+    "firefox": "Mozilla Firefox",
+    "explorer": "Проводник"
+  }
+}
