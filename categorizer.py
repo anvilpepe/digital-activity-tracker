@@ -4,7 +4,6 @@ import win32gui
 import win32process
 import json
 from jsonschema import validate
-
 schema = {
     "type": "object",
     "properties": {
@@ -44,10 +43,11 @@ class WindowInfo:
     def __str__(self):
         return f"{self.title} : {self.info}"
 class Category:
-    def __init__(self, name : str, display_title : str, raw_title : str):
+    def __init__(self, name : str, display_title : str, raw_title : str, window: WindowInfo = None):
         self.name = name
         self.raw_title = raw_title
         self.display_title = display_title
+        self.window = window
     def __str__(self):
         return f"{self.display_title} : {self.name}"
 
@@ -91,7 +91,8 @@ def categorize(window : WindowInfo) -> Category:
     return Category(
         name = category,
         display_title=cfg.get("title_overrides", raw_title).get(raw_title, raw_title),
-        raw_title=window.info.process_name.removesuffix(".exe")
+        raw_title=window.info.process_name.removesuffix(".exe"),
+        window=window
     )
 
 
