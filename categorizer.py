@@ -15,10 +15,51 @@ schema = {
     },
     "required": ["process_rules", "window_rules"]
 }
+default_cfg = """
+    {
+  "process_rules": {
+    "Telegram.exe": "Соцсети",
+    "Discord.exe": "Соцсети",
+    "pycharm64.exe": "Разработка",
+    "python3.12.exe": "Разработка",
+    "vscode.exe": "Разработка"
+  },
+  "work_categories": ["Работа", "Разработка"],
+  "window_rules": {
+    "Работа": ["Jira", "Confluence", "GitHub", "python3"],
+    "Развлечения": ["YouTube", "Twitch", "Steam"]
+  },
+  "browser_specific": {
+    "Работа": ["StackOverflow", "GitLab"],
+    "Развлечения": ["Reddit", "TikTok"]
+  },
+  "blocklist": {
+    "categories": [],
+    "processes": [],
+    "apps": []
+  },
+  "pomodoro": {
+    "work_minutes": 25,
+    "break_minutes": 5
+  },
+  "title_overrides":{
+    "pycharm64": "PyCharm",
+    "Taskmgr": "Диспетчер задач",
+    "wps": "WPS Office",
+    "firefox": "Mozilla Firefox",
+    "explorer": "Проводник"
+  }
+}
+"""
 
 def load_config(path="config.json"):
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        with open(path, "w+", encoding="utf-8") as f:
+            f.write(default_cfg)
+        return  load_config()
 def get_pomodoro(cfg_json=load_config()) -> None | dict:
     pomodoro_cfg = cfg_json.get("pomodoro", None)
     if not pomodoro_cfg:

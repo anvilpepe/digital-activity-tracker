@@ -2,13 +2,14 @@ import time
 import sqlite3
 import psutil
 from datetime import datetime
-
 import categorizer
 from categorizer import try_get_active_window_properties as tgw, categorize, Category
+# from win10toast import ToastNotifier
 
 productivity_keywords = ["PyCharm", "Visual Studio Code", ".py"]
 distraction_keywords = ["YouTube", "Reddit", "Telegram"]
 cfg = categorizer.load_config()
+# toast = ToastNotifier()
 
 def get_db_connection():
     con = sqlite3.connect("track.db", check_same_thread=False)
@@ -75,6 +76,7 @@ def main():
 
     pomodoro = categorizer.get_pomodoro()
     working_for = 0
+    working = True
     resting_for = 0
 
     try:
@@ -95,6 +97,8 @@ def main():
                     """,
         (category.display_title, category.raw_title, category.name, cur_seconds + 1))
                 con.commit()
+
+
                 time.sleep(1)
 
     except KeyboardInterrupt:

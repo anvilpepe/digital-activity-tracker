@@ -1,13 +1,9 @@
 import tkinter as tk
 from tkinter import ttk
-import sqlite3
 import threading
-import categorizer
 import main
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import numpy as np
-
 
 class ActivityTrackerApp(tk.Tk):
     def __init__(self):

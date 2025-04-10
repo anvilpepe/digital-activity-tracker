@@ -6,11 +6,7 @@
     "python3.12.exe": "Разработка",
     "vscode.exe": "Разработка"
   },
-  "window_restrictions": {
-    "YouTube": {
-      "max_minutes_per_day": 1
-    }
-  },
+  "work_categories": ["Работа", "Разработка"],
   "window_rules": {
     "Работа": ["Jira", "Confluence", "GitHub", "python3"],
     "Развлечения": ["YouTube", "Twitch", "Steam"]
