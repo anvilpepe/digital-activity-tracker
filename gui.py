@@ -16,6 +16,7 @@ class ActivityTrackerApp(tk.Tk):
         self.geometry("1400x900")
         self.minsize(1200, 800)
         self.db_conn = main.get_db_connection()
+        self.theme_mode = "dark"  # Начальная тема
         self.setup_theme()
         self.setup_ui()
         self.update_data()
@@ -24,11 +25,17 @@ class ActivityTrackerApp(tk.Tk):
 
     def setup_theme(self):
         self.style = ThemedStyle(self)
-        self.style.set_theme("equilux")
-        self.style.configure("TButton", padding=6, font=('Segoe UI', 10))
-        self.style.configure("Treeview.Heading", font=('Segoe UI', 10, 'bold'))
-        self.style.configure("Treeview", font=('Segoe UI', 9), rowheight=25)
-        self.style.map("Treeview", background=[('selected', '#3B8ED0')])
+        self.style.set_theme("equilux" if self.theme_mode == "dark" else "arc")
+
+        # Настройка цветов для разных тем
+        if self.theme_mode == "dark":
+            self.bg_color = "#464646"
+            self.text_color = "white"
+            self.chart_bg = "#2E2E2E"
+        else:
+            self.bg_color = "#FFFFFF"
+            self.text_color = "black"
+            self.chart_bg = "#F5F6F7"
 
     def setup_ui(self):
         self.grid_columnconfigure(0, weight=1)
@@ -50,6 +57,16 @@ class ActivityTrackerApp(tk.Tk):
         control_frame = ttk.Frame(self.left_panel)
         control_frame.pack(fill=tk.X, pady=5)
 
+        # Кнопка переключения темы
+        self.theme_btn = ttk.Button(
+            control_frame,
+            text="🌙 Светлая тема" if self.theme_mode == "dark" else "🌞 Тёмная тема",
+            command=self.toggle_theme,
+            width=15
+        )
+        self.theme_btn.pack(side=tk.RIGHT, padx=5)
+
+        # Остальные элементы управления...
         self.mode_var = tk.StringVar(value="Общая статистика")
         mode_menu = ttk.Combobox(
             control_frame,
@@ -65,20 +82,74 @@ class ActivityTrackerApp(tk.Tk):
         self.toggle_btn = ttk.Button(
             control_frame,
             text="▲ Скрыть графики",
-            style="Accent.TButton",
             command=self.toggle_charts
         )
         self.toggle_btn.pack(side=tk.RIGHT, padx=5)
 
-        # Table setup
+        # Таблица и графики...
         self.setup_table()
-
-        # Chart setup
         self.setup_charts()
 
         # Status bar
         self.status_bar = ttk.Label(self, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.grid(row=1, column=0, sticky='ew')
+
+    def toggle_theme(self):
+        # Переключение между темами
+        self.theme_mode = "light" if self.theme_mode == "dark" else "dark"
+        self.setup_theme()
+        self.theme_btn.config(
+            text="🌞 Тёмная тема" if self.theme_mode == "light" else "🌙 Светлая тема"
+        )
+
+        # Обновление цветов графиков
+        self.update_chart_colors()
+
+        # Обновление стилей виджетов
+        self.update_widget_styles()
+        self.status_bar.config(text=f"Тема изменена на {'светлую' if self.theme_mode == 'light' else 'тёмную'}")
+
+    def update_chart_colors(self):
+        # Обновление цветов графиков
+        for fig, ax in [(self.category_fig, self.category_ax),
+                        (self.apps_fig, self.apps_ax)]:
+            fig.patch.set_facecolor(self.bg_color)
+            ax.set_facecolor(self.bg_color)
+
+            for text in ax.texts:
+                text.set_color(self.text_color)
+
+            if ax.title.get_text():
+                ax.title.set_color(self.text_color)
+
+            if ax.get_legend():
+                ax.get_legend().get_title().set_color(self.text_color)
+                for text in ax.get_legend().get_texts():
+                    text.set_color(self.text_color)
+
+        self.category_canvas.draw_idle()
+        self.apps_canvas.draw_idle()
+
+    def update_widget_styles(self):
+        # Обновление стилей для виджетов
+        self.style.configure(
+            "Treeview",
+            background=self.bg_color,
+            fieldbackground=self.bg_color,
+            foreground=self.text_color
+        )
+
+        self.style.configure(
+            "Treeview.Heading",
+            background=self.chart_bg,
+            foreground=self.text_color,
+            font=('Segoe UI', 10, 'bold')
+        )
+
+        self.style.map(
+            "Treeview",
+            background=[('selected', '#3B8ED0' if self.theme_mode == 'dark' else '#1E90FF')]
+        )
 
     def setup_table(self):
         columns = ('title', 'category', 'seconds', 'percentage')
@@ -123,57 +194,54 @@ class ActivityTrackerApp(tk.Tk):
 
         # Category chart
         self.category_fig, self.category_ax = plt.subplots(figsize=(8, 4), dpi=100)
-        self.category_fig.patch.set_facecolor('#464646')
+        self.category_fig.patch.set_facecolor(self.bg_color)
         self.category_canvas = FigureCanvasTkAgg(self.category_fig, self.chart_container)
         self.category_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, pady=5)
 
         # App chart
         self.apps_fig, self.apps_ax = plt.subplots(figsize=(8, 4), dpi=100)
-        self.apps_fig.patch.set_facecolor('#464646')
+        self.apps_fig.patch.set_facecolor(self.bg_color)
         self.apps_canvas = FigureCanvasTkAgg(self.apps_fig, self.chart_container)
         self.apps_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, pady=5)
 
     def update_charts(self, category_data, app_data):
-        # Clear previous charts
+        # Очистка предыдущих графиков
         self.category_ax.clear()
         self.apps_ax.clear()
 
-        # Modern color palette
-        colors = list(mcolors.TABLEAU_COLORS.values())
-        explode = [0.05] * len(category_data) if category_data else []
+        # Установка цветов в соответствии с темой
+        colors = plt.cm.tab20.colors
+        self.category_ax.set_facecolor(self.bg_color)
+        self.apps_ax.set_facecolor(self.bg_color)
 
-        # Category chart
+        # Остальной код отрисовки графиков...
         if category_data:
             labels, sizes = zip(*category_data)
             total = sum(sizes)
             percentages = [f'{(s / total) * 100:.1f}%' for s in sizes]
 
-            wedges, texts, autotexts = self.category_ax.pie(
+            wedges, texts = self.category_ax.pie(
                 sizes,
-                labels=percentages,
+                # labels=percentages, # мне не нужно это на графике
                 colors=colors,
                 startangle=140,
                 wedgeprops={'linewidth': 1.5, 'edgecolor': 'w'},
-                autopct='%1.1f%%',
                 pctdistance=0.85,
-                textprops={'color': 'w', 'fontsize': 9}
+                textprops={'color': self.text_color, 'fontsize': 9}
             )
 
             self.category_ax.axis('equal')
-            self.category_ax.set_title('Распределение по категориям', color='white', pad=20)
+            self.category_ax.set_title('Распределение по категориям',
+                                       color=self.text_color, pad=20)
 
-        # App chart
         if app_data:
             labels, sizes = zip(*app_data)
             bars = self.apps_ax.barh(labels, sizes, color=colors)
-            self.apps_ax.bar_label(bars, padding=5, color='white', fmt='%d сек')
-            self.apps_ax.set_facecolor('#464646')
-            self.apps_ax.tick_params(axis='both', colors='white')
-            self.apps_ax.set_title('Топ приложений', color='white', pad=15)
+            self.apps_ax.bar_label(bars, padding=5, color=self.text_color, fmt='%d сек')
+            self.apps_ax.tick_params(axis='both', colors=self.text_color)
+            self.apps_ax.set_title('Топ приложений', color=self.text_color, pad=15)
 
-        for ax in [self.category_ax, self.apps_ax]:
-            ax.set_facecolor('#464646')
-
+        # Обновление canvas
         self.category_canvas.draw()
         self.apps_canvas.draw()
 
@@ -245,6 +313,7 @@ class ActivityTrackerApp(tk.Tk):
 
             self.status_bar.config(text=f"Данные обновлены: {datetime.now().strftime('%H:%M:%S')}")
         except Exception as e:
+            # raise e
             messagebox.showerror("Ошибка", f"Ошибка обновления данных: {str(e)}")
         finally:
             self.after(5000, self.update_data)
