@@ -94,20 +94,6 @@ def main():
                 """, (category.display_title, category.raw_title, category.name, today))
 
                 con.commit()
-
-                # # Для отладки: выводим сегодняшнюю статистику
-                # entries = cur.execute("""
-                #     SELECT * FROM track WHERE date = ?
-                # """, (today,)).fetchall()
-                # print(f"Today's entries ({today}):")
-                # for entry in entries:
-                #     print(entry)
-                #
-                # con = get_db_connection()
-                # cur = con.cursor()
-                # entries = cur.execute("SELECT * FROM track").fetchall()
-                # print(entries)
-
             time.sleep(1)
 
     except KeyboardInterrupt:

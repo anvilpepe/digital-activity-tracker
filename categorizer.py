@@ -113,7 +113,6 @@ def categorize(window : WindowInfo) -> Category:
     if not window: raise Exception("Passed None as a window")
     if window.info.pid == -1: raise Exception(f"Invalid process info for {window}")
     cfg = load_config()
-    # validate(cfg, schema)
 
     category = cfg["process_rules"].get(window.info.process_name, None)
     kw_title : str = ""
@@ -122,14 +121,14 @@ def categorize(window : WindowInfo) -> Category:
         for cat, kws in cfg["window_rules"].items():
             if any(kw in window.title for kw in kws):
                 category = cat
-                for kw in kws: # костыль
+                for kw in kws:
                     if kw in window.title:
                         kw_title = kw
                 do_from_title = True
                 break
         else:
             category = "Другое"
-    raw_title = window.info.process_name.removesuffix(".exe") if not do_from_title else kw_title # window.title
+    raw_title = window.info.process_name.removesuffix(".exe") if not do_from_title else kw_title
     return Category(
         name = category,
         display_title=cfg.get("title_overrides", raw_title).get(raw_title, raw_title),

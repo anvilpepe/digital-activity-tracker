@@ -7,12 +7,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 from ttkthemes import ThemedStyle
-import matplotlib.colors as mcolors
 
 class ActivityTrackerApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Digital Activity Tracker Pro")
+        self.title("Digital Activity Tracker")
         self.geometry("1400x900")
         self.minsize(1200, 800)
         self.db_conn = main.get_db_connection()
@@ -170,7 +169,7 @@ class ActivityTrackerApp(tk.Tk):
         self.stats_tree.column('title', width=200, anchor=tk.W)
         self.stats_tree.column('category', width=150, anchor=tk.W)
         self.stats_tree.column('seconds', width=75, anchor=tk.E)
-        self.stats_tree.column('percentage', width=25, anchor=tk.E)
+        self.stats_tree.column('percentage', width=70, anchor=tk.E)
 
         scroll_y = ttk.Scrollbar(self.left_panel, orient=tk.VERTICAL, command=self.stats_tree.yview)
         self.stats_tree.configure(yscrollcommand=scroll_y.set)
@@ -214,7 +213,12 @@ class ActivityTrackerApp(tk.Tk):
         self.category_ax.set_facecolor(self.bg_color)
         self.apps_ax.set_facecolor(self.bg_color)
 
-        # Остальной код отрисовки графиков...
+        legend_params = {
+            'loc': 'upper left',
+            'bbox_to_anchor': (0, 1),
+            'fontsize': 8
+        }
+
         if category_data:
             labels, sizes = zip(*category_data)
             total = sum(sizes)
@@ -233,6 +237,13 @@ class ActivityTrackerApp(tk.Tk):
             self.category_ax.axis('equal')
             self.category_ax.set_title('Распределение по категориям',
                                        color=self.text_color, pad=20)
+
+            self.category_ax.legend(
+                wedges,
+                labels,
+                title="Категории",
+                **legend_params
+            )
 
         if app_data:
             labels, sizes = zip(*app_data)
@@ -302,7 +313,7 @@ class ActivityTrackerApp(tk.Tk):
 
             total_time = cur.execute(total_time_query, params).fetchone()
 
-            print(total_time)
+            # print(total_time)
             for row in cur.execute(table_query, params):
                 percent = tuple([round(100 * row[2] / total_time[0] if total_time else 1, 2)])
                 self.stats_tree.insert('', 'end', values=row + percent)
