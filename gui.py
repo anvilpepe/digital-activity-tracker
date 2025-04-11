@@ -81,7 +81,7 @@ class ActivityTrackerApp(tk.Tk):
         self.status_bar.grid(row=1, column=0, sticky='ew')
 
     def setup_table(self):
-        columns = ('title', 'category', 'seconds')
+        columns = ('title', 'category', 'seconds', 'percentage')
         self.stats_tree = ttk.Treeview(
             self.left_panel,
             columns=columns,
@@ -94,10 +94,12 @@ class ActivityTrackerApp(tk.Tk):
         self.stats_tree.heading('title', text='Приложение', command=lambda: self.sort_column('title', False))
         self.stats_tree.heading('category', text='Категория', command=lambda: self.sort_column('category', False))
         self.stats_tree.heading('seconds', text='Время', command=lambda: self.sort_column('seconds', False))
+        self.stats_tree.heading('percentage', text='Процент', command=lambda : self.sort_column('percentage', False))
 
         self.stats_tree.column('title', width=200, anchor=tk.W)
         self.stats_tree.column('category', width=150, anchor=tk.W)
-        self.stats_tree.column('seconds', width=100, anchor=tk.E)
+        self.stats_tree.column('seconds', width=75, anchor=tk.E)
+        self.stats_tree.column('percentage', width=25, anchor=tk.E)
 
         scroll_y = ttk.Scrollbar(self.left_panel, orient=tk.VERTICAL, command=self.stats_tree.yview)
         self.stats_tree.configure(yscrollcommand=scroll_y.set)
@@ -224,8 +226,18 @@ class ActivityTrackerApp(tk.Tk):
                 GROUP BY title 
                 ORDER BY SUM(seconds) DESC
             """
+            total_time_query = f"""
+                SELECT SUM(seconds)
+                FROM track
+                {where_clause}
+            """
+
+            total_time = cur.execute(total_time_query, params).fetchone()
+
+            print(total_time)
             for row in cur.execute(table_query, params):
-                self.stats_tree.insert('', 'end', values=row)
+                percent = tuple([round(100 * row[2] / total_time[0] if total_time else 1, 2)])
+                self.stats_tree.insert('', 'end', values=row + percent)
 
             # Обновляем графики
 
