@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import threading
 import main
+from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -12,6 +13,7 @@ class ActivityTrackerApp(tk.Tk):
         self.geometry("1200x800")
         self.db_conn = main.get_db_connection()
         self.charts_visible = True
+        self.view_mode = tk.StringVar(value="Общая статистика")  # Режим просмотра: total/day
         self.setup_ui()
         self.update_data()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -33,6 +35,21 @@ class ActivityTrackerApp(tk.Tk):
         )
         self.toggle_btn.pack(side=tk.LEFT, padx=5)
 
+        # Переключатель режимов
+        mode_frame = ttk.Frame(control_frame)
+        mode_frame.pack(side=tk.LEFT, padx=10)
+
+        ttk.Label(mode_frame, text="Режим:").pack(side=tk.LEFT)
+        self.mode_combobox = ttk.Combobox(
+            mode_frame,
+            textvariable=self.view_mode,
+            values=["Общая статистика", "Статистика за день", "Статистика за вчера"],
+            state="readonly",
+            width=20
+        )
+        self.mode_combobox.pack(side=tk.LEFT)
+        self.mode_combobox.bind("<<ComboboxSelected>>", lambda _: self.update_data())
+
         # Левая панель - таблица
         self.left_panel = ttk.Frame(main_frame)
         self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -43,7 +60,6 @@ class ActivityTrackerApp(tk.Tk):
 
         # Таблица статистики
         self.setup_table()
-
         # Графики
         self.setup_charts()
 
@@ -147,33 +163,46 @@ class ActivityTrackerApp(tk.Tk):
     def update_data(self):
         try:
             cur = self.db_conn.cursor()
+            today = datetime.now().date().isoformat()
+            yesterday = (datetime.now() - timedelta(1)).strftime("%Y-%m-%d")
+            mode = self.view_mode.get()
+
+            # Базовые условия для запросов
+            where_clause = "WHERE date = ?" if mode == "Статистика за день" or mode == "Статистика за вчера" else ""
+            params = (today,) if mode == "Статистика за день" else (yesterday,) if mode == "Статистика за вчера" else ()
 
             # Получаем данные для категорий
-            category_data = cur.execute("""
+            category_query = f"""
                 SELECT category, SUM(seconds) 
                 FROM track 
+                {where_clause}
                 GROUP BY category 
                 ORDER BY SUM(seconds) DESC
-            """).fetchall()
+            """
+            category_data = cur.execute(category_query, params).fetchall()
 
             # Получаем данные для приложений
-            app_data = cur.execute("""
+            app_query = f"""
                 SELECT title, SUM(seconds) 
                 FROM track 
+                {where_clause}
                 GROUP BY title 
                 ORDER BY SUM(seconds) DESC 
-                LIMIT 15
-            """).fetchall()
+                LIMIT 10
+            """
+            app_data = cur.execute(app_query, params).fetchall()
 
             # Обновляем таблицу
             self.stats_tree.delete(*self.stats_tree.get_children())
-            for title, category, seconds in cur.execute("""
+            table_query = f"""
                 SELECT title, category, SUM(seconds) 
                 FROM track 
+                {where_clause}
                 GROUP BY title 
                 ORDER BY SUM(seconds) DESC
-            """):
-                self.stats_tree.insert('', 'end', values=(title, category, seconds))
+            """
+            for row in cur.execute(table_query, params):
+                self.stats_tree.insert('', 'end', values=row)
 
             # Обновляем графики
             if self.charts_visible:
@@ -181,7 +210,6 @@ class ActivityTrackerApp(tk.Tk):
 
         finally:
             self.after(5000, self.update_data)
-
     def on_close(self):
         self.db_conn.close()
         plt.close('all')

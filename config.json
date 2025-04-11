@@ -6,26 +6,23 @@
     "python3.12.exe": "Разработка",
     "vscode.exe": "Разработка"
   },
-  "work_categories": ["Работа", "Разработка"],
+  "window_restrictions": {
+    "YouTube":
+    {
+      "max_minutes_per_day": 3600
+    }
+  },
   "window_rules": {
     "Работа": ["Jira", "Confluence", "GitHub", "python3"],
     "Развлечения": ["YouTube", "Twitch", "Steam"]
-  },
-  "browser_specific": {
-    "Работа": ["StackOverflow", "GitLab"],
-    "Развлечения": ["Reddit", "TikTok"]
   },
   "blocklist": {
     "categories": [],
     "processes": [],
     "apps": []
   },
-  "pomodoro": {
-    "work_minutes": 25,
-    "break_minutes": 5
-  },
   "title_overrides":{
-    "pycharm64": "PyCharm",
+    "pycharm64": "PyChar3",
     "Taskmgr": "Диспетчер задач",
     "wps": "WPS Office",
     "firefox": "Mozilla Firefox",

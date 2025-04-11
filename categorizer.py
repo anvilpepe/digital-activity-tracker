@@ -15,8 +15,7 @@ schema = {
     },
     "required": ["process_rules", "window_rules"]
 }
-default_cfg = """
-    {
+default_cfg = {
   "process_rules": {
     "Telegram.exe": "Соцсети",
     "Discord.exe": "Соцсети",
@@ -24,23 +23,20 @@ default_cfg = """
     "python3.12.exe": "Разработка",
     "vscode.exe": "Разработка"
   },
-  "work_categories": ["Работа", "Разработка"],
+  "window_restrictions": {
+    "YouTube":
+    {
+      "max_minutes_per_day": 3600
+    }
+  },
   "window_rules": {
     "Работа": ["Jira", "Confluence", "GitHub", "python3"],
     "Развлечения": ["YouTube", "Twitch", "Steam"]
-  },
-  "browser_specific": {
-    "Работа": ["StackOverflow", "GitLab"],
-    "Развлечения": ["Reddit", "TikTok"]
   },
   "blocklist": {
     "categories": [],
     "processes": [],
     "apps": []
-  },
-  "pomodoro": {
-    "work_minutes": 25,
-    "break_minutes": 5
   },
   "title_overrides":{
     "pycharm64": "PyCharm",
@@ -50,6 +46,11 @@ default_cfg = """
     "explorer": "Проводник"
   }
 }
+pomodoro_default = """
+"pomodoro": {
+    "work_minutes": 25,
+    "break_minutes": 5
+  },
 """
 
 def load_config(path="config.json"):
@@ -112,7 +113,7 @@ def categorize(window : WindowInfo) -> Category:
     if not window: raise Exception("Passed None as a window")
     if window.info.pid == -1: raise Exception(f"Invalid process info for {window}")
     cfg = load_config()
-    validate(cfg, schema)
+    # validate(cfg, schema)
 
     category = cfg["process_rules"].get(window.info.process_name, None)
     kw_title : str = ""
