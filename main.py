@@ -1,83 +1,77 @@
 import time
 import sqlite3
 import psutil
-from datetime import datetime
+from datetime import datetime, timezone, date
 import categorizer
 from categorizer import try_get_active_window_properties as tgw, categorize, Category
-# from win10toast import ToastNotifier
 
-productivity_keywords = ["PyCharm", "Visual Studio Code", ".py"]
-distraction_keywords = ["YouTube", "Reddit", "Telegram"]
 cfg = categorizer.load_config()
-# toast = ToastNotifier()
+
 
 def get_db_connection():
     con = sqlite3.connect("track.db", check_same_thread=False)
 
     con.cursor().execute("""
-            CREATE TABLE IF NOT EXISTS track(
-                title TEXT PRIMARY KEY,
-                process_name TEXT,
-                category TEXT,
-                seconds INTEGER,
-                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
-            """)
+        CREATE TABLE IF NOT EXISTS track(
+            title TEXT,
+            process_name TEXT,
+            category TEXT,
+            seconds INTEGER,
+            date DATE,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (title, date))
+        """)
 
     return con
 
-def handle_restrictions(category : Category):
+
+def handle_restrictions(category: Category):
     con = get_db_connection()
     cur = con.cursor()
     kill = psutil.Process(category.window.info.pid).kill
+    today = date.today().isoformat()
 
-    timestamp = cur.execute("SELECT last_updated FROM track WHERE title=?", (category.display_title,)).fetchone()
-    timestamp = timestamp[0] if timestamp else None
-    seconds = cur.execute("SELECT seconds FROM track WHERE title=?", (category.display_title,)).fetchone()
-    seconds = seconds[0] if seconds else None
-    if not seconds: return
-    now, ts_mon, ts_day = 0,0,0
-    if timestamp:
-        now = datetime.now()
-        ts_sep = str(timestamp).split('-')
-        ts_mon = int(ts_sep[1])
-        ts_day = ts_sep[2]
-        ts_day = int(ts_day[:2])
-        # print((now.month, now.day) == (ts_mon, ts_day))
-    else: return
+    # Получаем статистику за текущий день
+    cur.execute("""
+        SELECT SUM(seconds) 
+        FROM track 
+        WHERE title = ? AND date = ?
+    """, (category.display_title, today))
+
+    total_seconds = cur.fetchone()[0] or 0
 
     if cfg.get("window_restrictions", None):
         for name, params in cfg["window_restrictions"].items():
-            if not name in category.display_title or not (ts_mon, ts_day) == (now.month, now.day): continue
-            always = params.get("always_blocked", False)
-            if always: kill()
-            mins = params.get("max_minutes_per_day", None)
-            if not mins: continue
-            if seconds / 60 > mins: kill()
+            if name not in category.display_title:
+                continue
 
+            # Проверка дневного лимита
+            mins = params.get("max_minutes_per_day", None)
+            if mins and (total_seconds / 60) > mins:
+                kill()
+
+            # Мгновенная блокировка
+            if params.get("always_blocked", False):
+                kill()
 
     blocklist = cfg.get("blocklist", None)
-    if not blocklist: return
-    categories = blocklist.get("categories", None)
-    processes = blocklist.get("processes", None)
-    apps = blocklist.get("apps", None)
-    if categories:
-        for cat in categories:
-            if cat == category.name: kill()
-    if processes:
-        for p in processes:
-            if p == category.window.info.process_name: kill()
-    if apps:
-        for app in apps:
-            if app in category.display_title: kill()
+    if blocklist:
+        categories = blocklist.get("categories", [])
+        processes = blocklist.get("processes", [])
+        apps = blocklist.get("apps", [])
+
+        if category.name in categories:
+            kill()
+        if category.window.info.process_name in processes:
+            kill()
+        if any(app in category.display_title for app in apps):
+            kill()
+
 
 def main():
     con = get_db_connection()
     cur = con.cursor()
-
-    pomodoro = categorizer.get_pomodoro()
-    working_for = 0
-    working = True
-    resting_for = 0
+    today = date.today().isoformat()
 
     try:
         while True:
@@ -88,22 +82,64 @@ def main():
 
             category = categorize(window)
             handle_restrictions(category)
+
             with con:
-                cur.execute("SELECT seconds FROM track WHERE title=?", (category.display_title,))
-                cur_seconds = cur.fetchone()
-                cur_seconds = cur_seconds[0] if cur_seconds else 0
+                # Обновляем или создаем запись для текущего дня
                 cur.execute("""
-                    INSERT OR REPLACE INTO track VALUES(?,?,?,?,CURRENT_TIMESTAMP) 
-                    """,
-        (category.display_title, category.raw_title, category.name, cur_seconds + 1))
+                    INSERT INTO track (title, process_name, category, seconds, date)
+                    VALUES (?, ?, ?, 1, ?)
+                    ON CONFLICT(title, date) DO UPDATE SET
+                        seconds = seconds + 1,
+                        last_updated = CURRENT_TIMESTAMP
+                """, (category.display_title, category.raw_title, category.name, today))
+
                 con.commit()
-
-
-                time.sleep(1)
+            time.sleep(1)
 
     except KeyboardInterrupt:
         con.close()
         print("Database connection closed")
 
+def insert_debug_entry(title: str, process_name: str, category: str,
+                       seconds: int, target_date: str):
+    """
+    Вставляет тестовую запись с указанной датой
+    Пример использования:
+    insert_debug_entry("Chrome", "chrome.exe", "Работа", 3600, "2024-04-01")
+    """
+    try:
+        # Проверяем формат даты
+        datetime.strptime(target_date, "%Y-%m-%d")
+    except ValueError:
+        print("Некорректный формат даты. Используйте YYYY-MM-DD")
+        return
+
+    con = get_db_connection()
+    cur = con.cursor()
+
+    try:
+        cur.execute("""
+            INSERT INTO track (title, process_name, category, seconds, date)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(title, date) DO UPDATE SET
+                seconds = excluded.seconds,
+                last_updated = CURRENT_TIMESTAMP
+        """, (title, process_name, category, seconds, target_date))
+
+        con.commit()
+        print(f"Успешно добавлена запись за {target_date}")
+
+    except Exception as e:
+        print(f"Ошибка при вставке: {str(e)}")
+    finally:
+        con.close()
+
 if __name__ == "__main__":
+    # insert_debug_entry(
+    #     title="AAAAAAAAAAA",
+    #     category="a",
+    #     target_date="1980-01-01",
+    #     seconds=9999,
+    #     process_name="sasdoas"
+    # )
     main()
