@@ -23,6 +23,9 @@ class ActivityTrackerApp(tk.Tk):
         self.setup_ui()
         self.update_data()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        tracker_thread = threading.Thread(target=run_tracker, daemon=True)
+        tracker_thread.start()
         # self.bind("<Configure>", self.on_window_resize) # doesn't work
 
     def setup_theme(self):
@@ -39,12 +42,15 @@ class ActivityTrackerApp(tk.Tk):
             self.text_color = "black"
             self.chart_bg = "#F5F6F7"
 
+        self.style.configure('TPanedWindow', sashwidth=0, background=self.bg_color)
+        self.style.layout('TPanedWindow', [('Sash', {'sticky': 'nswe'})])
+
     def setup_ui(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         # Main container
-        main_paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        main_paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL, style="TPanedWindow")
         main_paned.grid(row=0, column=0, sticky='nsew')
 
         # Left panel (Table)
@@ -103,7 +109,6 @@ class ActivityTrackerApp(tk.Tk):
         self.status_bar = ttk.Label(self, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.grid(row=1, column=0, sticky='ew')
 
-    @staticmethod
     def export_to_csv(self):
         messagebox.showinfo(title='Результат', message=csv_export.export())
 
@@ -355,6 +360,5 @@ def run_tracker():
 
 if __name__ == "__main__":
     app = ActivityTrackerApp()
-    tracker_thread = threading.Thread(target=run_tracker, daemon=True)
-    tracker_thread.start()
+
     app.mainloop()
