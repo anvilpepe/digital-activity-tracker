@@ -8,8 +8,8 @@ from categorizer import try_get_active_window_properties as tgw, categorize, Cat
 cfg = categorizer.load_config()
 
 
-def get_db_connection():
-    con = sqlite3.connect("track.db", check_same_thread=False)
+def get_db_connection(path="track.db"):
+    con = sqlite3.connect(path, check_same_thread=False)
 
     con.cursor().execute("""
         CREATE TABLE IF NOT EXISTS track(
@@ -68,8 +68,8 @@ def handle_restrictions(category: Category):
             kill()
 
 
-def main():
-    con = get_db_connection()
+def main(db_path="track.db"):
+    con = get_db_connection(db_path)
     cur = con.cursor()
     today = date.today().isoformat()
 
