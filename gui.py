@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 import threading
+
+import csv_export
 import main
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
@@ -85,8 +87,13 @@ class ActivityTrackerApp(tk.Tk):
             command=self.toggle_charts
         )
         self.toggle_btn.pack(side=tk.RIGHT, padx=5)
-        
 
+        self.export_btn = ttk.Button(
+            control_frame,
+            text="Экспорт",
+            command=self.export_to_csv
+        )
+        self.export_btn.pack(side=tk.RIGHT, padx=5)
 
         # Таблица и графики...
         self.setup_table()
@@ -95,6 +102,10 @@ class ActivityTrackerApp(tk.Tk):
         # Status bar
         self.status_bar = ttk.Label(self, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.grid(row=1, column=0, sticky='ew')
+
+    @staticmethod
+    def export_to_csv(self):
+        messagebox.showinfo(title='Результат', message=csv_export.export())
 
     def toggle_theme(self):
         # Переключение между темами
