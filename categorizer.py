@@ -15,7 +15,8 @@ schema = {
     },
     "required": ["process_rules", "window_rules"]
 }
-default_cfg = {
+default_cfg = """
+{
   "process_rules": {
     "Telegram.exe": "Соцсети",
     "Discord.exe": "Соцсети",
@@ -45,7 +46,7 @@ default_cfg = {
     "firefox": "Mozilla Firefox",
     "explorer": "Проводник"
   }
-}
+}"""
 pomodoro_default = """
 "pomodoro": {
     "work_minutes": 25,

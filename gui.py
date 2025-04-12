@@ -13,6 +13,7 @@ class ActivityTrackerApp(tk.Tk):
         super().__init__()
         self.title("Digital Activity Tracker")
         self.geometry("1400x900")
+        self.resizable(False, False)
         self.minsize(1200, 800)
         self.db_conn = main.get_db_connection()
         self.theme_mode = "dark"  # Начальная тема
@@ -20,7 +21,7 @@ class ActivityTrackerApp(tk.Tk):
         self.setup_ui()
         self.update_data()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
-        # self.bind("<Configure>", self.on_window_resize)
+        # self.bind("<Configure>", self.on_window_resize) # doesn't work
 
     def setup_theme(self):
         self.style = ThemedStyle(self)
@@ -84,6 +85,8 @@ class ActivityTrackerApp(tk.Tk):
             command=self.toggle_charts
         )
         self.toggle_btn.pack(side=tk.RIGHT, padx=5)
+        
+
 
         # Таблица и графики...
         self.setup_table()
