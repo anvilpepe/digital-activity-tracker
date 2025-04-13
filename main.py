@@ -2,17 +2,20 @@ import time
 import sqlite3
 import psutil
 from datetime import datetime, timezone, date
+
+import auth_gui
 import categorizer
+from auth import AuthSystem
 from categorizer import try_get_active_window_properties as tgw, categorize, Category
 
 cfg = categorizer.load_config()
 
 
-def get_db_connection():
+def get_db_connection(table_name):
     con = sqlite3.connect("track.db", check_same_thread=False)
 
-    con.cursor().execute("""
-        CREATE TABLE IF NOT EXISTS track(
+    con.cursor().execute(f"""
+        CREATE TABLE IF NOT EXISTS {table_name}(
             title TEXT,
             process_name TEXT,
             category TEXT,
@@ -25,8 +28,8 @@ def get_db_connection():
     return con
 
 
-def handle_restrictions(category: Category):
-    con = get_db_connection()
+def handle_restrictions(category: Category, table_name="track"):
+    con = get_db_connection(table_name)
     cur = con.cursor()
     kill = psutil.Process(category.window.info.pid).kill
     today = date.today().isoformat()
@@ -68,8 +71,8 @@ def handle_restrictions(category: Category):
             kill()
 
 
-def main():
-    con = get_db_connection()
+def main(table_name="track"):
+    con = get_db_connection(table_name)
     cur = con.cursor()
     today = date.today().isoformat()
 
@@ -81,12 +84,12 @@ def main():
                 continue
 
             category = categorize(window)
-            handle_restrictions(category)
+            handle_restrictions(category, table_name)
 
             with con:
                 # Обновляем или создаем запись для текущего дня
-                cur.execute("""
-                    INSERT INTO track (title, process_name, category, seconds, date)
+                cur.execute(f"""
+                    INSERT INTO {table_name} (title, process_name, category, seconds, date)
                     VALUES (?, ?, ?, 1, ?)
                     ON CONFLICT(title, date) DO UPDATE SET
                         seconds = seconds + 1,
@@ -135,11 +138,6 @@ def insert_debug_entry(title: str, process_name: str, category: str,
         con.close()
 
 if __name__ == "__main__":
-    # insert_debug_entry(
-    #     title="AAAAAAAAAAA",
-    #     category="a",
-    #     target_date="1980-01-01",
-    #     seconds=9999,
-    #     process_name="sasdoas"
-    # )
-    main()
+    auth_gui.AuthWindow(AuthSystem(), hidden=True).mainloop()
+
+    # main()

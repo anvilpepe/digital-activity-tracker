@@ -2,12 +2,12 @@ import csv
 import os
 import sqlite3 as sql
 
-def export(path_to_db: str = "track.db", export_path: str = "export.csv") -> str | None:
+def export(path_to_db: str = "track.db", table_name="track", export_path: str = "export.csv") -> str | None:
     try:
         con = sql.connect(path_to_db)
         cur = con.cursor()
 
-        cur.execute("SELECT * FROM track")
+        cur.execute(f"SELECT * FROM {table_name}")
         rows = cur.fetchall()
 
         with open(export_path, "w+", encoding="utf-16", newline='') as f:
