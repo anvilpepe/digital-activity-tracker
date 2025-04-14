@@ -1,14 +1,14 @@
-import tkinter as tk
 from tkinter import ttk
-import threading
-
-import csv_export
-import main
-from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import messagebox
 from ttkthemes import ThemedStyle
+from tkcalendar import *
+import threading, matplotlib.pyplot as plt, tkinter as tk, json
+import main, csv_export
+from datetime import datetime, timedelta
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+from main import toaster
+
 
 class ActivityTrackerApp(tk.Tk):
     def __init__(self):
@@ -23,10 +23,12 @@ class ActivityTrackerApp(tk.Tk):
         self.setup_ui()
         self.update_data()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.selected_date = datetime.now().date().isoformat()
 
         tracker_thread = threading.Thread(target=run_tracker, daemon=True)
         tracker_thread.start()
         # self.bind("<Configure>", self.on_window_resize) # doesn't work
+
 
     def setup_theme(self):
         self.style = ThemedStyle(self)
@@ -79,13 +81,13 @@ class ActivityTrackerApp(tk.Tk):
         mode_menu = ttk.Combobox(
             control_frame,
             textvariable=self.mode_var,
-            values=["Общая статистика", "Статистика за день", "Статистика за вчера"],
+            values=["Общая статистика", "Статистика за день", "Статистика за вчера", "Статистика за неделю", "Выбрать дату"],
             state="readonly",
             font=('Segoe UI', 10),
-            width=20
+            width=20,
         )
         mode_menu.pack(side=tk.LEFT, padx=5)
-        mode_menu.bind("<<ComboboxSelected>>", lambda e: self.update_data())
+        mode_menu.bind("<<ComboboxSelected>>", lambda e: self.on_mode_select(e))
 
         self.toggle_btn = ttk.Button(
             control_frame,
@@ -109,8 +111,44 @@ class ActivityTrackerApp(tk.Tk):
         self.status_bar = ttk.Label(self, text="Готово", relief=tk.SUNKEN, anchor=tk.W)
         self.status_bar.grid(row=1, column=0, sticky='ew')
 
+    def on_mode_select(self, event):
+        selected_mode = self.mode_var.get()
+        if selected_mode == "Выбрать дату":
+            self.open_calendar()
+        else:
+            self.update_data()
+
+    def open_calendar(self):
+        """Открывает окно календаря для выбора даты"""
+        top = tk.Toplevel(self)
+        top.title("Выберите дату")
+        top.grab_set()  # Делаем окно модальным
+
+        # Создаем календарь с русской локализацией
+        cal = Calendar(
+            top,
+            selectmode='day',
+            date_pattern='yyyy-mm-dd',
+            locale='ru_RU',
+            mindate=datetime(2020, 1, 1),
+            maxdate=datetime.now()
+        )
+        cal.pack(padx=10, pady=10)
+
+        def set_date():
+            self.selected_date = cal.get_date()
+            top.destroy()
+            self.mode_var.set(f"Выбрано: {self.selected_date}")
+            self.update_data()
+
+        btn_frame = ttk.Frame(top)
+        btn_frame.pack(pady=5)
+
+        ttk.Button(btn_frame, text="OK", command=set_date).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Отмена", command=top.destroy).pack(side=tk.LEFT, padx=5)
     def export_to_csv(self):
-        messagebox.showinfo(title='Результат', message=csv_export.export())
+        where_clause, params = self.get_clause()
+        messagebox.showinfo(title='Результат', message=csv_export.export(where_clause=where_clause, params=params))
 
     def toggle_theme(self):
         # Переключение между темами
@@ -283,16 +321,32 @@ class ActivityTrackerApp(tk.Tk):
             self.chart_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
             self.toggle_btn.config(text="▲ Скрыть графики")
 
+    def get_clause(self):
+        today = datetime.now().date().isoformat()
+        yesterday = (datetime.now() - timedelta(1)).strftime("%Y-%m-%d")
+        if self.mode_var.get().startswith("Выбрано:"):
+            mode = "Выбрать дату"
+        else:
+            mode = self.mode_var.get()
+
+        where_clause = "WHERE date = ?" \
+            if (mode == "Статистика за день" or
+                mode == "Статистика за вчера" or
+                mode == "Выбрать дату") \
+            else "WHERE date BETWEEN ? AND ?" if mode == "Статистика за неделю" \
+            else ""
+        params = () if where_clause == "" \
+            else (today,) if mode == "Статистика за день" \
+            else (yesterday,) if mode == "Статистика за вчера" \
+            else (self.selected_date,) if mode == "Выбрать дату" \
+            else ((datetime.now() - timedelta(7)).strftime("%Y-%m-%d"), today) if mode == "Статистика за неделю" \
+            else ()
+        return where_clause, params
+
     def update_data(self):
         try:
             cur = self.db_conn.cursor()
-            today = datetime.now().date().isoformat()
-            yesterday = (datetime.now() - timedelta(1)).strftime("%Y-%m-%d")
-            mode = self.mode_var.get()
-
-            # Базовые условия для запросов
-            where_clause = "WHERE date = ?" if mode == "Статистика за день" or mode == "Статистика за вчера" else ""
-            params = (today,) if mode == "Статистика за день" else (yesterday,) if mode == "Статистика за вчера" else ()
+            where_clause, params = self.get_clause()
 
             # Получаем данные для категорий
             category_query = f"""

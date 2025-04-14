@@ -5,8 +5,7 @@ from datetime import datetime, timezone, date
 import categorizer
 from categorizer import try_get_active_window_properties as tgw, categorize, Category
 
-cfg = categorizer.load_config()
-
+cfg : dict = categorizer.load_config()
 
 def get_db_connection():
     con = sqlite3.connect("track.db", check_same_thread=False)
@@ -23,7 +22,6 @@ def get_db_connection():
         """)
 
     return con
-
 
 def handle_restrictions(category: Category):
     con = get_db_connection()
