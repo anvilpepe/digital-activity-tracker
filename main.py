@@ -1,11 +1,8 @@
-import time
-import sqlite3
-import psutil
-from datetime import datetime, timezone, date
+import psutil, json, sqlite3, time
+from datetime import datetime, date
+from win10toast import ToastNotifier
 import categorizer
 from categorizer import try_get_active_window_properties as tgw, categorize, Category
-
-cfg : dict = categorizer.load_config()
 
 def get_db_connection():
     con = sqlite3.connect("track.db", check_same_thread=False)
@@ -22,6 +19,8 @@ def get_db_connection():
         """)
 
     return con
+
+cfg : dict = categorizer.load_config()
 
 def handle_restrictions(category: Category):
     con = get_db_connection()
@@ -52,7 +51,7 @@ def handle_restrictions(category: Category):
             if params.get("always_blocked", False):
                 kill()
 
-    blocklist = cfg.get("blocklist", None)
+    blocklist : dict | None = cfg.get("blocklist", None)
     if blocklist:
         categories = blocklist.get("categories", [])
         processes = blocklist.get("processes", [])
@@ -70,6 +69,7 @@ def main():
     con = get_db_connection()
     cur = con.cursor()
     today = date.today().isoformat()
+
 
     try:
         while True:
@@ -92,6 +92,8 @@ def main():
                 """, (category.display_title, category.raw_title, category.name, today))
 
                 con.commit()
+
+            # notifier.check_notifications()
             time.sleep(1)
 
     except KeyboardInterrupt:
@@ -141,3 +143,5 @@ if __name__ == "__main__":
     #     process_name="sasdoas"
     # )
     main()
+
+

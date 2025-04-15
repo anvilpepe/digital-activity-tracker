@@ -45,6 +45,14 @@ default_cfg = """
     "wps": "WPS Office",
     "firefox": "Mozilla Firefox",
     "explorer": "Проводник"
+  },
+  "notifications": false,
+  "notification_rules": {
+    "categories": {
+      "Развлечения": {
+        "time_threshold_minutes": 120
+      }
+    }
   }
 }"""
 pomodoro_default = """

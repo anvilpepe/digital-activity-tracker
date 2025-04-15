@@ -3,16 +3,18 @@ from tkinter import messagebox
 from ttkthemes import ThemedStyle
 from tkcalendar import *
 import threading, matplotlib.pyplot as plt, tkinter as tk, json
+from win10toast import ToastNotifier
 import main, csv_export
 from datetime import datetime, timedelta
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
-from main import toaster
 
 
 class ActivityTrackerApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        self.triggered_rules = []
+        self.toaster = ToastNotifier()
+        self.load_notification_settings()
         self.title("Digital Activity Tracker")
         self.geometry("1400x900")
         self.resizable(False, False)
@@ -29,6 +31,50 @@ class ActivityTrackerApp(tk.Tk):
         tracker_thread.start()
         # self.bind("<Configure>", self.on_window_resize) # doesn't work
 
+    def show_notification(self, title, message):
+        self.toaster.show_toast(
+            title,
+            message,
+            # icon_path="icon.ico",
+            duration=10,
+            threaded=True
+        )
+
+    def load_notification_settings(self):
+        try:
+            with open('config.json', 'r', encoding="utf-8") as f:
+                config = json.load(f)
+                self.notifications_enabled = config.get('notifications', True)
+                self.notification_rules = config.get('notification_rules', {})
+        except Exception as e:
+            print(e)
+            self.notifications_enabled = False
+            self.notification_rules = {}
+
+    def check_notifications(self):
+        if not self.notifications_enabled: return
+        try:
+            cur = self.db_conn.cursor()
+            for rule, content in self.notification_rules.items():
+                if rule == "categories":
+                    for cat, cat_rules in content.items():
+                        for cat_rule_name, cat_rule_val in cat_rules.items():
+                            if f"{cat} {cat_rule_name} {cat_rule_val}" in self.triggered_rules: continue
+                            if cat_rule_name == "time_threshold_minutes":
+                                cur.execute("""
+                                    SELECT SUM(seconds)/60
+                                    FROM track
+                                    WHERE date=?
+                                """, (datetime.now().date().isoformat(),))
+                                minutes = cur.fetchone()
+                                minutes = minutes[0] if minutes else None
+                                if not minutes: continue
+                                if minutes >= cat_rule_val:
+                                    self.triggered_rules.append(f"{cat} {cat_rule_name} {cat_rule_val}")
+                                    self.show_notification("Предупреждение",
+                                                           f"Вы провели в приложениях категории {cat} больше, чем планировали ({cat_rule_val} минут).")
+        except Exception as e:
+            print(f"Ошибка уведомления: {str(e)}")
 
     def setup_theme(self):
         self.style = ThemedStyle(self)
@@ -303,9 +349,11 @@ class ActivityTrackerApp(tk.Tk):
             )
 
         if app_data:
-            labels, sizes = zip(*app_data)
+            # Распаковываем данные и преобразуем секунды в минуты
+            labels, seconds = zip(*app_data)
+            sizes = [s / 60 for s in seconds]
             bars = self.apps_ax.barh(labels, sizes, color=colors)
-            self.apps_ax.bar_label(bars, padding=5, color=self.text_color, fmt='%d сек')
+            self.apps_ax.bar_label(bars, padding=5, color=self.text_color, fmt='%.1f мин') #%d сек
             self.apps_ax.tick_params(axis='both', colors=self.text_color)
             self.apps_ax.set_title('Топ приложений', color=self.text_color, pad=15)
 
@@ -396,6 +444,8 @@ class ActivityTrackerApp(tk.Tk):
             self.update_charts(category_data, app_data)
 
             self.status_bar.config(text=f"Данные обновлены: {datetime.now().strftime('%H:%M:%S')}")
+
+            self.check_notifications()
         except Exception as e:
             # raise e
             messagebox.showerror("Ошибка", f"Ошибка обновления данных: {str(e)}")
