@@ -266,7 +266,7 @@ class ActivityTrackerApp(tk.Tk):
         # Configure columns
         self.stats_tree.heading('title', text='Приложение', command=lambda: self.sort_column('title', False))
         self.stats_tree.heading('category', text='Категория', command=lambda: self.sort_column('category', False))
-        self.stats_tree.heading('seconds', text='Время', command=lambda: self.sort_column('seconds', False))
+        self.stats_tree.heading('seconds', text='Время, сек', command=lambda: self.sort_column('seconds', False))
         self.stats_tree.heading('percentage', text='Процент', command=lambda : self.sort_column('percentage', False))
 
         self.stats_tree.column('title', width=200, anchor=tk.W)
